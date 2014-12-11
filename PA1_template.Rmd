@@ -5,21 +5,210 @@ output:
     keep_md: true
 ---
 
+This is Peer Assesment 1 for Coursera course Reproducible Research.
+
+## Set locale and load required libraries
+
+Set locale and load libraries
+
+```{r}
+Sys.setlocale("LC_TIME", "English")
+
+library(ggplot2)
+```
 
 ## Loading and preprocessing the data
 
+Lets load the data from activity.csv contained by activity.zip. 
 
+- File activity.zip must be found from working directory. 
+  It is extracted if necessary. The original zip file can be found from 
+  https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip
+  
+- data is loaded from activity.csv
+
+- column date is transformed to Date data type
+
+```{r}
+if( !file.exists("activity.csv")) {
+  unzip("activity.zip")
+}
+data <- read.csv("activity.csv", stringsAsFactors=FALSE)
+data$date <- as.Date(data$date, "%Y-%m-%d")
+```
+
+Summary of the data
+
+```{r}
+summary(data)
+```
 
 ## What is mean total number of steps taken per day?
 
+Calculate steps per day, with mean and median values.
 
+```{r}
+stepsperday <- aggregate(data$steps, by=list(date=data$date), FUN=sum)
+mea <- mean(stepsperday$x, na.rm=TRUE)
+med <- median(stepsperday$x, na.rm=TRUE)
+totalsteps <- sum(data$steps, na.rm=TRUE)
+```
+
+Histogram presents frequency of steps, along with mean and median.
+
+```{r}
+hist(stepsperday$x, 
+     xlab="Steps", 
+     main="Total number of steps taken per day")
+abline(v = mea, col = "blue", lwd = 1, lty=2)
+abline(v = med, col = "red", lwd = 1, lty=3)
+legend("topright", 
+       col=c("blue", "red"),
+       legend=c(paste("Mean", round(mea,1)), paste("Median", round(med,1))), 
+       lty=c(2,3))
+```
 
 ## What is the average daily activity pattern?
 
+In the data, days have been divided into 5 minute slots called intervals. 
+Lets calculate mean of steps for each interval and resolve which interval has 
+the highest average value.
 
+```{r}
+intervalstepmeans <- aggregate(data$steps, 
+                               by=list(interval=data$interval), 
+                               FUN=mean, 
+                               na.rm=TRUE)
+maxsteps <- max(intervalstepmeans$x)
+maxinterval <- intervalstepmeans[order(intervalstepmeans$x,
+                                       decreasing=T),]$interval[1]
+```
+
+Plot presents the data by using the 5-minute interval as x-axis and the 
+average numberof steps taken (averaged across all days) as y-axis. Visualize 
+interval with highest average.
+
+```{r}
+plot(intervalstepmeans$x ~ intervalstepmeans$interval, 
+     type="n",
+     xlab="Interval", 
+     ylab="Steps",
+     main="Average steps across all the days")
+
+abline(v = maxinterval, h=50, col = "blue", lwd = 1, lty=2)
+abline(h = maxsteps, col = "blue", lwd = 1, lty=2)
+
+lines(intervalstepmeans$x ~ intervalstepmeans$interval, type="l")
+
+legend("topright", 
+       col=c("blue"),
+       legend=paste("Interval", maxinterval, 
+                    "has max avg:", round(maxsteps,1)),
+       lty=2)
+```
 
 ## Imputing missing values
 
+There are a number of days/intervals where there are missing values (coded 
+as NA in the data). The presence of missing days may introduce bias into 
+some calculations or summaries of the data. The amount of NA values in the
+original data is `r sum(is.na(data$steps))`.
+
+Lets create a new dataset that is equal to the original dataset but with 
+the missing data filled in. Strategy for replacing the missing 5-minute 
+measurements is using a mean value of the corresponding interval. 
+
+```{r}
+cleandata <- data
+cleandata$defaultvalue <- intervalstepmeans$x
+cleandata$steps <- ifelse(is.na(cleandata$steps), 
+                          cleandata$defaultvalue, 
+                          cleandata$steps)
+```
+Summary of the cleaned data
+
+```{r}
+summary(cleandata)
+```
+
+Lets calculate steps per day, with mean and median values again, 
+now by using the cleaned data
+
+```{r}
+cleanstepsperday <- aggregate(cleandata$steps,
+                              by=list(date=cleandata$date), 
+                              FUN=sum)
+cleanmea <- mean(cleanstepsperday$x)
+cleanmed <- median(cleanstepsperday$x)
+cleantotalsteps <- sum(cleandata$steps)
+```
+
+Histogram presents frequency of steps, along with mean and median by using 
+the cleaned data.
+
+```{r}
+hist(cleanstepsperday$x, 
+     xlab="Steps", 
+     main="Total number of steps taken per day, from cleaned data")
+abline(v = cleanmea, col = "blue", lwd = 1, lty=2)
+abline(v = cleanmed, col = "red", lwd = 1, lty=3)
+legend("topright", 
+       col=c("blue", "red"),
+       legend=c(paste("Mean", round(cleanmea,1)), 
+                paste("Median", round(cleanmed,1))), 
+       lty=c(2,3))
+```
+
+Effects of cleaning the data:
+
+- Mean has changed from `r format(mea, nsmall=1)` to 
+  `r format(cleanmea, nsmall=1)`
+- Median has changed from `r format(med, nsmall=1)` to 
+  `r format(cleanmed, nsmall=1)`
+- Total number of steps has changed from `r format(totalsteps)` to 
+  `r format(cleantotalsteps)`
+- As we can see from the results, there are now more days falling in 
+  10000-15000 steps category than in the histogram about the original 
+  data, but other categories seem to have same frequences. This is 
+  caused by the fact that most missing values focused on the same days. 
+  Now data for these days has been filled with median data and the appear 
+  in the average. For the same reason, they have no effect on mean and 
+  very small effect on median.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Lets create a new factor variable in the dataset with two levels:
+"weekday" and "weekend" indicating whether a given date is a weekday 
+or weekend day. Then, lets calculate means for intervals over weekdays 
+and weekends.
+
+```{r}
+cleandata$day <- weekdays(cleandata$date)
+cleandata$weekpart <- sapply(cleandata$day, function(x) { 
+    if(x %in% c("Monday", "Tuesday", "Wednesday", 
+                "Thursday", "Friday") ) "Weekday" 
+    else "Weekend"
+  })
+
+cleanintervalstepmeans <- aggregate(cleandata$steps, 
+                                    by=list(interval=cleandata$interval, 
+                                            weekpart=cleandata$weekpart), 
+                                    FUN=mean)
+```
+
+Plot below contains a time series plot of the 5-minute interval (x-axis) 
+and the average number of steps taken, averaged across all weekday days 
+or weekend days (y-axis). Some variance in the activity pattern can be noticed.
+
+```{r}
+qplot(interval, 
+      x, 
+      geom="line",
+      data=cleanintervalstepmeans, 
+      facets = weekpart ~ ., 
+      main="Average steps across the period", 
+      xlab="Interval", 
+      ylab="Steps")
+
+```
