@@ -7,7 +7,7 @@ output:
 
 This is Peer Assesment 1 for Coursera course Reproducible Research.
 
-## Set locale and load required libraries
+## Setting locale and loading required libraries
 
 Set locale and load libraries
 
@@ -22,10 +22,6 @@ Sys.setlocale("LC_TIME", "English")
 
 ```r
 library(ggplot2)
-```
-
-```
-## Warning: package 'ggplot2' was built under R version 3.1.2
 ```
 
 ## Loading and preprocessing the data

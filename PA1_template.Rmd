@@ -7,7 +7,7 @@ output:
 
 This is Peer Assesment 1 for Coursera course Reproducible Research.
 
-## Set locale and load required libraries
+## Setting locale and loading required libraries
 
 Set locale and load libraries
 
